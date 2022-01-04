@@ -14,13 +14,12 @@ describe('cross-pile', () => {
         });
     }
 
-    // let provider = anchor.Provider.env();
     const userKeyPair = anchor.web3.Keypair.generate();
     const user2KeyPair = anchor.web3.Keypair.generate();
     let provider = createProvider(userKeyPair);
     let provider2 = createProvider(user2KeyPair);
 
-    const solRngIdl = JSON.parse('{"version":"0.0.0","name":"sol_rng","instructions":[{"name":"initialize","accounts":[{"name":"requester","isMut":true,"isSigner":false},{"name":"authority","isMut":true,"isSigner":true},{"name":"oracle","isMut":false,"isSigner":false},{"name":"rent","isMut":false,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[{"name":"requestBump","type":"u8"}]},{"name":"requestRandom","accounts":[{"name":"requester","isMut":true,"isSigner":false},{"name":"authority","isMut":true,"isSigner":true},{"name":"oracle","isMut":true,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[]},{"name":"publishRandom","accounts":[{"name":"oracle","isMut":false,"isSigner":true},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[{"name":"random","type":{"array":["u8",64]}},{"name":"pktId","type":{"array":["u8",32]}},{"name":"tlsId","type":{"array":["u8",32]}}]},{"name":"transferAuthority","accounts":[{"name":"requester","isMut":true,"isSigner":false},{"name":"authority","isMut":true,"isSigner":true},{"name":"newAuthority","isMut":true,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[]}],"accounts":[{"name":"Requester","type":{"kind":"struct","fields":[{"name":"authority","type":"publicKey"},{"name":"oracle","type":"publicKey"},{"name":"createdAt","type":"i64"},{"name":"count","type":"u64"},{"name":"lastUpdated","type":"i64"},{"name":"random","type":{"array":["u8",64]}},{"name":"pktId","type":{"array":["u8",32]}},{"name":"tlsId","type":{"array":["u8",32]}},{"name":"activeRequest","type":"bool"},{"name":"bump","type":"u8"}]}}],"errors":[{"code":300,"name":"Unauthorized","msg":"You are not authorized to complete this transaction"},{"code":301,"name":"AlreadyCompleted","msg":"You have already completed this transaction"},{"code":302,"name":"InflightRequest","msg":"A request is already in progress. Only one request may be made at a time"},{"code":303,"name":"WrongOracle","msg":"The Oracle you make the request with must be the same as initialization"},{"code":304,"name":"RequesterLocked","msg":"You cannot change authority of a request awaiting a response"}],"metadata":{"address":"2LXeKGTxVXwGpxvqLFgHzJyG4CFHXtBCKHXB6LPPv4N4"}}');
+    const solRngIdl = JSON.parse('{"version":"0.0.0","name":"sol_rng","instructions":[{"name":"initialize","accounts":[{"name":"requester","isMut":true,"isSigner":false},{"name":"vault","isMut":true,"isSigner":false},{"name":"authority","isMut":true,"isSigner":true},{"name":"oracle","isMut":false,"isSigner":false},{"name":"rent","isMut":false,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[{"name":"requestBump","type":"u8"},{"name":"vaultBump","type":"u8"}]},{"name":"requestRandom","accounts":[{"name":"requester","isMut":true,"isSigner":false},{"name":"vault","isMut":true,"isSigner":false},{"name":"authority","isMut":true,"isSigner":true},{"name":"oracle","isMut":true,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[]},{"name":"publishRandom","accounts":[{"name":"oracle","isMut":false,"isSigner":true},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[{"name":"random","type":{"array":["u8",64]}},{"name":"pktId","type":{"array":["u8",32]}},{"name":"tlsId","type":{"array":["u8",32]}}]},{"name":"transferAuthority","accounts":[{"name":"requester","isMut":true,"isSigner":false},{"name":"authority","isMut":true,"isSigner":true},{"name":"newAuthority","isMut":true,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[]}],"accounts":[{"name":"Requester","type":{"kind":"struct","fields":[{"name":"authority","type":"publicKey"},{"name":"oracle","type":"publicKey"},{"name":"createdAt","type":"i64"},{"name":"count","type":"u64"},{"name":"lastUpdated","type":"i64"},{"name":"random","type":{"array":["u8",64]}},{"name":"pktId","type":{"array":["u8",32]}},{"name":"tlsId","type":{"array":["u8",32]}},{"name":"activeRequest","type":"bool"},{"name":"bump","type":"u8"}]}},{"name":"Vault","type":{"kind":"struct","fields":[{"name":"requester","type":"publicKey"},{"name":"bump","type":"u8"}]}}],"errors":[{"code":300,"name":"Unauthorized","msg":"You are not authorized to complete this transaction"},{"code":301,"name":"AlreadyCompleted","msg":"You have already completed this transaction"},{"code":302,"name":"InflightRequest","msg":"A request is already in progress. Only one request may be made at a time"},{"code":303,"name":"WrongOracle","msg":"The Oracle you make the request with must be the same as initialization"},{"code":304,"name":"RequesterLocked","msg":"You cannot change authority of a request awaiting a response"}],"metadata":{"address":"2LXeKGTxVXwGpxvqLFgHzJyG4CFHXtBCKHXB6LPPv4N4"}}');
 
     const program = anchor.workspace.CrossPile as Program<CrossPile>;
     const userProgram = new anchor.Program(program.idl, program.programId, provider);
@@ -30,8 +29,9 @@ describe('cross-pile', () => {
     const solRngId = new anchor.web3.PublicKey('2LXeKGTxVXwGpxvqLFgHzJyG4CFHXtBCKHXB6LPPv4N4');
     const solRngProgram = new anchor.Program(solRngIdl, solRngId, provider);
     let reqAccount, reqBump;
+    let reqVaultAccount, reqVaultBump;
     let coinAccount, coinBump;
-    let wrapAccount, wrapBump;
+    let vaultAccount, vaultBump;
     let flipAccount, flipBump;
 
     anchor.setProvider(provider);
@@ -54,11 +54,18 @@ describe('cross-pile', () => {
             solRngId
             );
 
+        [reqVaultAccount, reqVaultBump] = await anchor.web3.PublicKey.findProgramAddress(
+            [Buffer.from("v-seed"), userKeyPair.publicKey.toBuffer()],
+            solRngId,
+            );
+
         await solRngProgram.rpc.initialize(
             reqBump,
+            reqVaultBump,
             {
                 accounts: {
                     requester: reqAccount,
+                    vault: reqVaultAccount,
                     authority: userKeyPair.publicKey,
                     oracle: oraclePubkey,
                     rent: anchor.web3.SYSVAR_RENT_PUBKEY,
@@ -75,26 +82,28 @@ describe('cross-pile', () => {
             program.programId
             );
 
-        [wrapAccount, wrapBump] = await anchor.web3.PublicKey.findProgramAddress(
-            [Buffer.from("wrap-seed"), userKeyPair.publicKey.toBuffer()],
+        [vaultAccount, vaultBump] = await anchor.web3.PublicKey.findProgramAddress(
+            [Buffer.from("vault-seed"), userKeyPair.publicKey.toBuffer()],
             program.programId
             );
 
         console.log('Coin account: ', coinAccount.toString());
         console.log('Req account: ', reqAccount.toString());
-        console.log('Wrap account: ', wrapAccount.toString());
+        console.log('Vault account: ', vaultAccount.toString());
 
-        const tx = await program.rpc.createCoin(
+        await program.rpc.createCoin(
             coinBump,
             reqBump,
-            wrapBump,
+            vaultBump,
             {
                 accounts: {
                     coin: coinAccount,
-                    oracleWrapper: wrapAccount,
+                    vault: vaultAccount,
                     requester: reqAccount,
-                    authority: userKeyPair.publicKey,
+                    initiator: userKeyPair.publicKey,
+                    acceptor: user2KeyPair.publicKey,
                     oracle: oraclePubkey,
+                    oracleVault: reqVaultAccount,
                     solRngProgram: solRngId,
                     rent: anchor.web3.SYSVAR_RENT_PUBKEY,
                     systemProgram: anchor.web3.SystemProgram.programId,
@@ -102,119 +111,31 @@ describe('cross-pile', () => {
                 signers: [userKeyPair],
             }
         );
-        console.log("Create transaction signature", tx);
     });
 
-    it('Flip a coin', async () => {
-        [flipAccount, flipBump] = await anchor.web3.PublicKey.findProgramAddress(
-            [Buffer.from("flip-seed"), userKeyPair.publicKey.toBuffer(), user2KeyPair.publicKey.toBuffer()],
-            program.programId
-            );
-
-        console.log('Flip account: ', flipAccount.toString());
-
+    it('Approve a flip', async () => {
         anchor.setProvider(provider2);
-        console.log('program provider: ', user2Program.provider.wallet.publicKey.toString());
         await user2Program.rpc.approveFlip(
-            // new anchor.BN(1000000),
             {
                 accounts: {
                     authority: user2KeyPair.publicKey,
-                    oracleWrapper: wrapAccount,
+                    vault: vaultAccount,
+                    initiator: userKeyPair.publicKey,
+                    requester: reqAccount,
+                    oracle: oraclePubkey,
+                    oracleVault: reqVaultAccount,
+                    solRngProgram: solRngId,
                     systemProgram: anchor.web3.SystemProgram.programId,
                 },
-                // remainingAccounts: [
-                //     {
-                //         pubkey: coinAccount,
-                //         isWritable: true,
-                //         isSigner: false,
-                //     },
-                // ],
+                remainingAccounts: [
+                    {
+                        pubkey: coinAccount,
+                        isWritable: true,
+                        isSigner: false,
+                    },
+                ],
                 signers: [user2KeyPair],
             },
         );
-
-        // const tx = program.transaction.flipCoin(
-        //     flipBump,
-        //     new anchor.BN(50),
-        //     {
-        //         accounts: {
-        //             flip: flipAccount,
-        //             coin: coinAccount,
-        //             pOne: userKeyPair.publicKey,
-        //             pTwo: user2KeyPair.publicKey,
-        //             oracle: oraclePubkey,
-        //             requester: reqAccount,
-        //             solRngProgram: solRngId,
-        //             rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-        //             systemProgram: anchor.web3.SystemProgram.programId,
-        //         }
-        //     }
-        // );
-        // const tx = program.transaction.flipCoin(
-        //     flipBump,
-        //     new anchor.BN(50),
-        //     {
-        //         accounts: {
-        //             p1: userKeyPair.publicKey,
-        //             p2: user2KeyPair.publicKey,
-        //             coin: coinAccount,
-        //             oracle: oraclePubkey,
-        //             requester: reqAccount,
-        //             solRngProgram: solRngId,
-        //             rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-        //             systemProgram: anchor.web3.SystemProgram.programId,
-        //         },
-        //         remainingAccounts: [
-        //             {
-        //                 pubkey: coinAccount,
-        //                 isWritable: true,
-        //                 isSigner: false,
-        //             },
-        //         ],
-        //     }
-        // );
-
-        // const tx = program.transaction.approveFlip({
-        //     accounts: {
-        //         authority
-        //         coin: coinAccount
-        //     },
-        //     remainingAccounts: [
-        //         {
-        //             pubkey: coinAccount,
-        //             isWritable: true,
-        //             isSigner: false,
-        //         },
-        //     ],
-        // });
-
-        // tx.recentBlockhash = (await provider.connection.getRecentBlockhash()).blockhash;
-        // tx.feePayer = userKeyPair.publicKey;
-        // console.log('no sign');
-        // console.log(tx.signatures);
-
-        // // tx.sign(userKeyPair);
-        // tx.sign(userKeyPair, user2KeyPair);
-        // console.log('1 sign');
-        // console.log(tx.signatures);
-
-        // // tx.sign(user2KeyPair);
-        // console.log('2 sign');
-
-        // console.log(tx.signatures);
-
-        // let serialized = tx.serialize();
-
-        // let result;
-        // try {
-        //     result = await provider.connection.sendRawTransaction(serialized);
-        // } catch (e) {
-        //     console.log(e);
-        // }
-
-        // // signed_tx.
-        // console.log('Result: ', result);
-        // console.log("Flip transaction signature", tx);
     });
 });
