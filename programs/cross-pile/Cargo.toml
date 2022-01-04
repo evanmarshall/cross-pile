@@ -1,0 +1,19 @@
+[package]
+name = "cross-pile"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "cross_pile"
+
+[features]
+no-entrypoint = []
+no-idl = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.18.2"
+sol_rng = { path = "/Users/evanmarshall/Documents/solana/sol-rng/sol_rng/programs/sol_rng", features = ["cpi"] }

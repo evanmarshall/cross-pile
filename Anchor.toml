@@ -1,0 +1,12 @@
+[programs.localnet]
+cross_pile = "6urrPCjcrQ1xaxbAJGMTtvZfA9wbMqQbEArKnVUHhYTs"
+
+[registry]
+url = "https://anchor.projectserum.com"
+
+[provider]
+cluster = "localnet"
+wallet = "/Users/evanmarshall/Documents/solana/sol-rng/sol_rng/app/.keys/req_id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

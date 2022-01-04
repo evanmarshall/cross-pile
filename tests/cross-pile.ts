@@ -1,0 +1,220 @@
+import * as anchor from '@project-serum/anchor';
+import { Program } from '@project-serum/anchor';
+import { CrossPile } from '../target/types/cross_pile';
+
+describe('cross-pile', () => {
+    const ENV = 'http://localhost:8899';
+    // const ENV = 'https://api.devnet.solana.com';
+
+    function createProvider(keyPair) {
+        let solConnection = new anchor.web3.Connection(ENV);
+        let walletWrapper = new anchor.Wallet(keyPair);
+        return new anchor.Provider(solConnection, walletWrapper, {
+            preflightCommitment: 'recent',
+        });
+    }
+
+    // let provider = anchor.Provider.env();
+    const userKeyPair = anchor.web3.Keypair.generate();
+    const user2KeyPair = anchor.web3.Keypair.generate();
+    let provider = createProvider(userKeyPair);
+    let provider2 = createProvider(user2KeyPair);
+
+    const solRngIdl = JSON.parse('{"version":"0.0.0","name":"sol_rng","instructions":[{"name":"initialize","accounts":[{"name":"requester","isMut":true,"isSigner":false},{"name":"authority","isMut":true,"isSigner":true},{"name":"oracle","isMut":false,"isSigner":false},{"name":"rent","isMut":false,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[{"name":"requestBump","type":"u8"}]},{"name":"requestRandom","accounts":[{"name":"requester","isMut":true,"isSigner":false},{"name":"authority","isMut":true,"isSigner":true},{"name":"oracle","isMut":true,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[]},{"name":"publishRandom","accounts":[{"name":"oracle","isMut":false,"isSigner":true},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[{"name":"random","type":{"array":["u8",64]}},{"name":"pktId","type":{"array":["u8",32]}},{"name":"tlsId","type":{"array":["u8",32]}}]},{"name":"transferAuthority","accounts":[{"name":"requester","isMut":true,"isSigner":false},{"name":"authority","isMut":true,"isSigner":true},{"name":"newAuthority","isMut":true,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[]}],"accounts":[{"name":"Requester","type":{"kind":"struct","fields":[{"name":"authority","type":"publicKey"},{"name":"oracle","type":"publicKey"},{"name":"createdAt","type":"i64"},{"name":"count","type":"u64"},{"name":"lastUpdated","type":"i64"},{"name":"random","type":{"array":["u8",64]}},{"name":"pktId","type":{"array":["u8",32]}},{"name":"tlsId","type":{"array":["u8",32]}},{"name":"activeRequest","type":"bool"},{"name":"bump","type":"u8"}]}}],"errors":[{"code":300,"name":"Unauthorized","msg":"You are not authorized to complete this transaction"},{"code":301,"name":"AlreadyCompleted","msg":"You have already completed this transaction"},{"code":302,"name":"InflightRequest","msg":"A request is already in progress. Only one request may be made at a time"},{"code":303,"name":"WrongOracle","msg":"The Oracle you make the request with must be the same as initialization"},{"code":304,"name":"RequesterLocked","msg":"You cannot change authority of a request awaiting a response"}],"metadata":{"address":"2LXeKGTxVXwGpxvqLFgHzJyG4CFHXtBCKHXB6LPPv4N4"}}');
+
+    const program = anchor.workspace.CrossPile as Program<CrossPile>;
+    const userProgram = new anchor.Program(program.idl, program.programId, provider);
+    const user2Program = new anchor.Program(program.idl, program.programId, provider2);
+
+    const oraclePubkey = new anchor.web3.PublicKey('qkyoiJyAtt7dzaUTsiQYYyGRrnJL3AE1mP93bmFXpY8');
+    const solRngId = new anchor.web3.PublicKey('2LXeKGTxVXwGpxvqLFgHzJyG4CFHXtBCKHXB6LPPv4N4');
+    const solRngProgram = new anchor.Program(solRngIdl, solRngId, provider);
+    let reqAccount, reqBump;
+    let coinAccount, coinBump;
+    let wrapAccount, wrapBump;
+    let flipAccount, flipBump;
+
+    anchor.setProvider(provider);
+
+    it('Set up tests', async () => {
+        console.log('User Pubkey: ', userKeyPair.publicKey.toString());
+        await provider.connection.confirmTransaction(
+            await provider.connection.requestAirdrop(userKeyPair.publicKey, 1000000000),
+            "confirmed"
+        );
+
+        console.log('User 2 Pubkey: ', user2KeyPair.publicKey.toString());
+        await provider.connection.confirmTransaction(
+            await provider.connection.requestAirdrop(user2KeyPair.publicKey, 1000000000),
+            "confirmed"
+        );
+
+        [reqAccount, reqBump] = await anchor.web3.PublicKey.findProgramAddress(
+            [Buffer.from("r-seed"), userKeyPair.publicKey.toBuffer()],
+            solRngId
+            );
+
+        await solRngProgram.rpc.initialize(
+            reqBump,
+            {
+                accounts: {
+                    requester: reqAccount,
+                    authority: userKeyPair.publicKey,
+                    oracle: oraclePubkey,
+                    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+                    systemProgram: anchor.web3.SystemProgram.programId,
+                },
+                signers: [userKeyPair],
+            }
+        );
+    });
+
+    it('Create a coin!', async () => {
+        [coinAccount, coinBump] = await anchor.web3.PublicKey.findProgramAddress(
+            [Buffer.from("coin-seed"), userKeyPair.publicKey.toBuffer()],
+            program.programId
+            );
+
+        [wrapAccount, wrapBump] = await anchor.web3.PublicKey.findProgramAddress(
+            [Buffer.from("wrap-seed"), userKeyPair.publicKey.toBuffer()],
+            program.programId
+            );
+
+        console.log('Coin account: ', coinAccount.toString());
+        console.log('Req account: ', reqAccount.toString());
+        console.log('Wrap account: ', wrapAccount.toString());
+
+        const tx = await program.rpc.createCoin(
+            coinBump,
+            reqBump,
+            wrapBump,
+            {
+                accounts: {
+                    coin: coinAccount,
+                    oracleWrapper: wrapAccount,
+                    requester: reqAccount,
+                    authority: userKeyPair.publicKey,
+                    oracle: oraclePubkey,
+                    solRngProgram: solRngId,
+                    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+                    systemProgram: anchor.web3.SystemProgram.programId,
+                },
+                signers: [userKeyPair],
+            }
+        );
+        console.log("Create transaction signature", tx);
+    });
+
+    it('Flip a coin', async () => {
+        [flipAccount, flipBump] = await anchor.web3.PublicKey.findProgramAddress(
+            [Buffer.from("flip-seed"), userKeyPair.publicKey.toBuffer(), user2KeyPair.publicKey.toBuffer()],
+            program.programId
+            );
+
+        console.log('Flip account: ', flipAccount.toString());
+
+        anchor.setProvider(provider2);
+        console.log('program provider: ', user2Program.provider.wallet.publicKey.toString());
+        await user2Program.rpc.approveFlip(
+            // new anchor.BN(1000000),
+            {
+                accounts: {
+                    authority: user2KeyPair.publicKey,
+                    oracleWrapper: wrapAccount,
+                    systemProgram: anchor.web3.SystemProgram.programId,
+                },
+                // remainingAccounts: [
+                //     {
+                //         pubkey: coinAccount,
+                //         isWritable: true,
+                //         isSigner: false,
+                //     },
+                // ],
+                signers: [user2KeyPair],
+            },
+        );
+
+        // const tx = program.transaction.flipCoin(
+        //     flipBump,
+        //     new anchor.BN(50),
+        //     {
+        //         accounts: {
+        //             flip: flipAccount,
+        //             coin: coinAccount,
+        //             pOne: userKeyPair.publicKey,
+        //             pTwo: user2KeyPair.publicKey,
+        //             oracle: oraclePubkey,
+        //             requester: reqAccount,
+        //             solRngProgram: solRngId,
+        //             rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        //             systemProgram: anchor.web3.SystemProgram.programId,
+        //         }
+        //     }
+        // );
+        // const tx = program.transaction.flipCoin(
+        //     flipBump,
+        //     new anchor.BN(50),
+        //     {
+        //         accounts: {
+        //             p1: userKeyPair.publicKey,
+        //             p2: user2KeyPair.publicKey,
+        //             coin: coinAccount,
+        //             oracle: oraclePubkey,
+        //             requester: reqAccount,
+        //             solRngProgram: solRngId,
+        //             rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        //             systemProgram: anchor.web3.SystemProgram.programId,
+        //         },
+        //         remainingAccounts: [
+        //             {
+        //                 pubkey: coinAccount,
+        //                 isWritable: true,
+        //                 isSigner: false,
+        //             },
+        //         ],
+        //     }
+        // );
+
+        // const tx = program.transaction.approveFlip({
+        //     accounts: {
+        //         authority
+        //         coin: coinAccount
+        //     },
+        //     remainingAccounts: [
+        //         {
+        //             pubkey: coinAccount,
+        //             isWritable: true,
+        //             isSigner: false,
+        //         },
+        //     ],
+        // });
+
+        // tx.recentBlockhash = (await provider.connection.getRecentBlockhash()).blockhash;
+        // tx.feePayer = userKeyPair.publicKey;
+        // console.log('no sign');
+        // console.log(tx.signatures);
+
+        // // tx.sign(userKeyPair);
+        // tx.sign(userKeyPair, user2KeyPair);
+        // console.log('1 sign');
+        // console.log(tx.signatures);
+
+        // // tx.sign(user2KeyPair);
+        // console.log('2 sign');
+
+        // console.log(tx.signatures);
+
+        // let serialized = tx.serialize();
+
+        // let result;
+        // try {
+        //     result = await provider.connection.sendRawTransaction(serialized);
+        // } catch (e) {
+        //     console.log(e);
+        // }
+
+        // // signed_tx.
+        // console.log('Result: ', result);
+        // console.log("Flip transaction signature", tx);
+    });
+});
