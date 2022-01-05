@@ -183,20 +183,21 @@ describe('cross-pile', () => {
         await user2Program.rpc.revealCoin(
             {
                 accounts: {
-                    initiator: user2KeyPair.publicKey,
-                    acceptor: userKeyPair.publicKey,
+                    initiator: userKeyPair.publicKey,
+                    acceptor: user2KeyPair.publicKey,
                     vault: vaultAccount,
                     requester: reqAccount,
                     authority: user2KeyPair.publicKey,
+                    solRngProgram: solRngId,
                     systemProgram: anchor.web3.SystemProgram.programId,
                 },
-                // remainingAccounts: [
-                //     {
-                //         pubkey: coinAccount,
-                //         isWritable: true,
-                //         isSigner: false,
-                //     },
-                // ],
+                remainingAccounts: [
+                    {
+                        pubkey: coinAccount,
+                        isWritable: true,
+                        isSigner: false,
+                    },
+                ],
                 signers: [user2KeyPair],
             },
         );

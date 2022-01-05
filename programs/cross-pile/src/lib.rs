@@ -118,37 +118,54 @@ pub mod cross_pile {
         Ok(())
     }
 
-    pub fn reveal_coin(
-        ctx: Context<RevealCoin>
+    pub fn reveal_coin<'key, 'accounts, 'remaining, 'info>(
+        ctx: Context<'key, 'accounts, 'remaining, 'info, RevealCoin<'info>>
     ) -> ProgramResult {
-        let requester = ctx.accounts.requester.load()?;
-        msg!("The random is {}", requester.random[0]);
+        {
+            let requester_loader: AccountLoader<sol_rng::Requester> = AccountLoader::try_from_unchecked(ctx.program_id, &ctx.accounts.requester).unwrap();
+            let requester = requester_loader.load()?;
+            let mut winner = ctx.accounts.initiator.clone();
 
-        let mut winner = ctx.accounts.initiator.clone();
+            // Take first byte (u8) and check if even
+            // Even random => acceptor wins & initiator loses
+            if requester.random[0] % 2 == 0 {
+                winner = ctx.accounts.acceptor.clone();
+            }
 
-        // Take first byte (u8) and check if even
-        // Even random => acceptor wins & initiator loses
-        if requester.random[0] % 2 == 0 {
-            winner = ctx.accounts.acceptor.clone();
-            msg!("The random is even");
+            **winner.try_borrow_mut_lamports()? += ctx.accounts.vault.to_account_info().lamports();
+            **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? = 0;
         }
-
-        if requester.random[0] % 2 == 1 {
-            msg!("The random is odd");
-        }
-
-        // let coin_loader: Loader<Coin> = Loader::try_from_unchecked(ctx.program_id, &ctx.remaining_accounts[0]).unwrap();
-        // let coin_key = coin_loader.key();
-        // let coin = coin_loader.load_mut()?;
-
-        // ctx.accounts.requester.data;
-        // sol_rng::Requester::deserialize();
-        let amount = ctx.accounts.vault.amount;
-
-        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? -= 2 * amount;
-        **winner.try_borrow_mut_lamports()? += 2 * amount;
 
         // Transfer back ownership of requester
+        let coin_acc = &ctx.remaining_accounts[0];
+
+        let cpi_accounts = sol_rng::cpi::accounts::TransferAuthority {
+            requester: ctx.accounts.requester.to_account_info(),
+            authority: coin_acc.to_account_info(),
+            new_authority: ctx.accounts.initiator.to_account_info(),
+            system_program: ctx.accounts.system_program.to_account_info()
+        };
+
+        let (_coin_authority, coin_bump) =
+            Pubkey::find_program_address(&[b"coin-seed".as_ref(), ctx.accounts.initiator.key.as_ref()], &ctx.program_id);
+
+        let coin_seeds = &[
+            b"coin-seed".as_ref(),
+            ctx.accounts.initiator.key.as_ref(),
+            &[coin_bump]
+        ];
+
+        let signer = &[
+            &coin_seeds[..]
+        ];
+
+        let cpi_context = CpiContext::new_with_signer(
+            ctx.accounts.sol_rng_program.clone(),
+            cpi_accounts,
+            signer
+        );
+
+        sol_rng::cpi::transfer_authority(cpi_context)?;
 
         return Ok(());
     }
@@ -211,9 +228,10 @@ pub struct RevealCoin<'info> {
     #[account(mut)]
     pub vault: Account<'info, Vault>,
     #[account(mut)]
-    pub requester: AccountLoader<'info, sol_rng::Requester>,
+    pub requester: AccountInfo<'info>,
     #[account(mut, signer)]
     pub authority: AccountInfo<'info>,
+    pub sol_rng_program: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 
