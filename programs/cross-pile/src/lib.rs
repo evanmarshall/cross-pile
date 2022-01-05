@@ -250,15 +250,3 @@ pub struct Vault {
     pub amount: u64,
     pub bump: u8,
 }
-
-#[error]
-pub enum ErrorCode {
-    #[msg("You are not authorized to complete this transaction")]
-    Unauthorized,
-    #[msg("You have already completed this transaction")]
-    AlreadyCompleted,
-    #[msg("A request is already in progress. Only one request may be made at a time")]
-    InflightRequest,
-    #[msg("The Oracle you make the request with must be the same as initialization")]
-    WrongOracle,
-}
