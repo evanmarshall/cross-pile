@@ -25,6 +25,10 @@ pub mod cross_pile {
             coin.is_flipping = false;
             coin.created_at = clock.unix_timestamp;
             coin.bump = coin_bump;
+
+            let vault = &mut ctx.accounts.vault;
+            vault.amount = 100000;
+            vault.bump = vault_bump;
         }
 
         let cpi_accounts = sol_rng::cpi::accounts::TransferAuthority {
@@ -117,17 +121,36 @@ pub mod cross_pile {
     pub fn reveal_coin(
         ctx: Context<RevealCoin>
     ) -> ProgramResult {
+        let requester = ctx.accounts.requester.load()?;
+        msg!("The random is {}", requester.random[0]);
+
+        let mut winner = ctx.accounts.initiator.clone();
+
+        // Take first byte (u8) and check if even
+        // Even random => acceptor wins & initiator loses
+        if requester.random[0] % 2 == 0 {
+            winner = ctx.accounts.acceptor.clone();
+            msg!("The random is even");
+        }
+
+        if requester.random[0] % 2 == 1 {
+            msg!("The random is odd");
+        }
 
         // let coin_loader: Loader<Coin> = Loader::try_from_unchecked(ctx.program_id, &ctx.remaining_accounts[0]).unwrap();
         // let coin_key = coin_loader.key();
         // let coin = coin_loader.load_mut()?;
 
         // ctx.accounts.requester.data;
+        // sol_rng::Requester::deserialize();
+        let amount = ctx.accounts.vault.amount;
 
-        // **flip.to_account_info().try_borrow_mut_lamports()? -= flip.amount;
-        // **ctx.accounts.checker.try_borrow_mut_lamports()? += flip.amount;
+        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? -= 2 * amount;
+        **winner.try_borrow_mut_lamports()? += 2 * amount;
 
-        Ok(())
+        // Transfer back ownership of requester
+
+        return Ok(());
     }
 }
 
@@ -181,14 +204,17 @@ pub struct ApproveFlip<'info> {
 
 #[derive(Accounts)]
 pub struct RevealCoin<'info> {
-    #[account(mut, signer)]
-    pub initiator_or_acceptor: AccountInfo<'info>,
     #[account(mut)]
-    pub other: AccountInfo<'info>,
+    pub initiator: AccountInfo<'info>,
+    #[account(mut)]
+    pub acceptor: AccountInfo<'info>,
     #[account(mut)]
     pub vault: Account<'info, Vault>,
     #[account(mut)]
-    pub requester: AccountInfo<'info>,
+    pub requester: AccountLoader<'info, sol_rng::Requester>,
+    #[account(mut, signer)]
+    pub authority: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[account(zero_copy)]
@@ -203,6 +229,7 @@ pub struct Coin {
 
 #[account]
 pub struct Vault {
+    pub amount: u64,
     pub bump: u8,
 }
 
