@@ -1,7 +1,8 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { CrossPile } from '../target/types/cross_pile';
-import { randomBytes } from 'crypto'
+import { randomBytes } from 'crypto';
+import { assert } from "chai";
 
 describe('cross-pile', () => {
     const ENV = 'http://localhost:8899';
@@ -13,6 +14,11 @@ describe('cross-pile', () => {
         return new anchor.Provider(solConnection, walletWrapper, {
             preflightCommitment: 'recent',
         });
+    }
+
+    async function getBalance(prov, key) {
+        anchor.setProvider(prov);
+        return await prov.connection.getBalance(key, "confirmed");
     }
 
     const userKeyPair = anchor.web3.Keypair.generate();
@@ -33,6 +39,8 @@ describe('cross-pile', () => {
     const oraclePubkey = oracle.publicKey;
     const solRngId = new anchor.web3.PublicKey('2LXeKGTxVXwGpxvqLFgHzJyG4CFHXtBCKHXB6LPPv4N4');
     const solRngProgram = new anchor.Program(solRngIdl, solRngId, provider);
+    const amount = new anchor.BN(100000000);
+    const airdropAmount = 10000000000; // Should be more than betting amount
     let reqAccount, reqBump;
     let reqVaultAccount, reqVaultBump;
     let coinAccount, coinBump;
@@ -44,19 +52,19 @@ describe('cross-pile', () => {
     it('Set up tests', async () => {
         console.log('User Pubkey: ', userKeyPair.publicKey.toString());
         await provider.connection.confirmTransaction(
-            await provider.connection.requestAirdrop(userKeyPair.publicKey, 1000000000),
+            await provider.connection.requestAirdrop(userKeyPair.publicKey, airdropAmount),
             "confirmed"
         );
 
         console.log('User 2 Pubkey: ', user2KeyPair.publicKey.toString());
         await provider.connection.confirmTransaction(
-            await provider.connection.requestAirdrop(user2KeyPair.publicKey, 1000000000),
+            await provider.connection.requestAirdrop(user2KeyPair.publicKey, airdropAmount),
             "confirmed"
         );
 
         console.log('Oracle Pubkey', oracle.publicKey.toString());
         await provider.connection.confirmTransaction(
-            await provider.connection.requestAirdrop(oracle.publicKey, 1000000000),
+            await provider.connection.requestAirdrop(oracle.publicKey, airdropAmount),
             "confirmed"
         );
 
@@ -106,6 +114,7 @@ describe('cross-pile', () => {
             coinBump,
             reqBump,
             vaultBump,
+            amount,
             {
                 accounts: {
                     coin: coinAccount,
@@ -122,6 +131,11 @@ describe('cross-pile', () => {
                 signers: [userKeyPair],
             }
         );
+
+        let userBalance = await getBalance(provider, userKeyPair.publicKey);
+        assert(userBalance < airdropAmount + amount.toNumber());
+
+        console.log('User Balance: ', userBalance);
     });
 
     it('Approve a flip', async () => {
@@ -148,10 +162,16 @@ describe('cross-pile', () => {
                 signers: [user2KeyPair],
             },
         );
+
+        let user2Balance = await getBalance(provider2, user2KeyPair.publicKey);
+        assert(user2Balance < airdropAmount + amount.toNumber());
+
+        console.log('User 2 Balance: ', user2Balance);
     });
 
     it('Oracle responds to request', async () => {
         let randomNumber = randomBytes(64);
+        randomNumber[0] = 0; // Force winner to be acceptor
         let pktId = randomBytes(32);
         let tlsId = randomBytes(32);
 
@@ -201,5 +221,13 @@ describe('cross-pile', () => {
                 signers: [user2KeyPair],
             },
         );
+        
+        let userBalance = await getBalance(provider, userKeyPair.publicKey);
+        assert(userBalance < airdropAmount + amount.toNumber());
+        let user2Balance = await getBalance(provider2, user2KeyPair.publicKey);
+        assert(user2Balance >= airdropAmount + amount.toNumber() - 3 * 5000); // account for transaction cost
+
+        console.log('User Balance: ', userBalance);
+        console.log('User 2 Balance: ', user2Balance);
     });
 });
