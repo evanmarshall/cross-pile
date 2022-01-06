@@ -129,7 +129,7 @@ describe('cross-pile', () => {
         );
 
         let userBalance = await getBalance(provider, userKeyPair.publicKey);
-        assert(userBalance < airdropAmount + amount.toNumber());
+        assert(userBalance < airdropAmount);
 
         console.log('User Balance: ', userBalance);
     });
@@ -199,11 +199,12 @@ describe('cross-pile', () => {
         );
         
         let userBalance = await getBalance(provider, userKeyPair.publicKey);
-        assert(userBalance < airdropAmount + amount.toNumber());
         let user2Balance = await getBalance(provider2, user2KeyPair.publicKey);
-        assert(user2Balance >= airdropAmount + amount.toNumber() - 3 * 5000); // account for transaction cost
 
         console.log('User Balance: ', userBalance);
         console.log('User 2 Balance: ', user2Balance);
+
+        assert(userBalance < airdropAmount + amount.toNumber());
+        assert(user2Balance >= airdropAmount + amount.toNumber() - 3 * 5000); // account for transaction cost
     });
 });
