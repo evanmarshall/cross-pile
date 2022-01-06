@@ -1,5 +1,5 @@
 # cross-pile
-A heads or tails (cross and pile) on Solana
+A heads or tails (cross and pile) on Solana. It's meant to serve as an example of how to use solrand, a randomness Oracle: https://github.com/evanmarshall/solrand
 
 
 # Installation & Usage
@@ -13,5 +13,15 @@ A heads or tails (cross and pile) on Solana
     1. Install: https://github.com/evanmarshall/solrand
     1. Run `anchor build && anchor deploy`
 3. Run `anchor build && anchor deploy`
-4. Use the Program Id found from the deploy. Replace `GxJJd3q28eUd7kpPCbNXGeixqHmBYJ2owqUYqse3ZrGS` with your new Program Id.
+4. Use the Program Id found from the deploy. Replace `6urrPCjcrQ1xaxbAJGMTtvZfA9wbMqQbEArKnVUHhYTs` with your new Program Id.
 5. Run the tests: `anchor test --skip-local-validator`
+
+# Troubleshooting
+
+## Problems with Anchor
+* The most common problem with anchor is using the right version of node. I recommend install Node through NVM and using `Node v16.11.1`. 
+
+# License
+
+We use the `GNU Affero General Public License v3.0 or later` license to ensure the community will always have access to all original and derivations of this program.
+Full text here: https://spdx.org/licenses/AGPL-3.0-or-later.html
