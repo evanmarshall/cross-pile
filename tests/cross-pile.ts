@@ -1,12 +1,13 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
+import { MockOracleSession, SOLRAND_IDL, PROGRAM_ID } from '@demox-labs/solrand';
 import { CrossPile } from '../target/types/cross_pile';
 import { randomBytes } from 'crypto';
 import { assert } from "chai";
 
 describe('cross-pile', () => {
     const ENV = 'http://localhost:8899';
-    // const ENV = 'https://api.devnet.solana.com';
+    const solrandId = new anchor.web3.PublicKey(PROGRAM_ID);
 
     function createProvider(keyPair) {
         let solConnection = new anchor.web3.Connection(ENV);
@@ -24,28 +25,23 @@ describe('cross-pile', () => {
     const userKeyPair = anchor.web3.Keypair.generate();
     const user2KeyPair = anchor.web3.Keypair.generate();
     const oracle = anchor.web3.Keypair.generate();
+    const oracleSession = new MockOracleSession(oracle, SOLRAND_IDL, solrandId, ENV);
 
     let provider = createProvider(userKeyPair);
     let provider2 = createProvider(user2KeyPair);
-    let oracleProvider = createProvider(oracle);
-
-    const solRngIdl = JSON.parse('{"version":"0.0.0","name":"sol_rng","instructions":[{"name":"initialize","accounts":[{"name":"requester","isMut":true,"isSigner":false},{"name":"vault","isMut":true,"isSigner":false},{"name":"authority","isMut":true,"isSigner":true},{"name":"oracle","isMut":false,"isSigner":false},{"name":"rent","isMut":false,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[{"name":"requestBump","type":"u8"},{"name":"vaultBump","type":"u8"}]},{"name":"requestRandom","accounts":[{"name":"requester","isMut":true,"isSigner":false},{"name":"vault","isMut":true,"isSigner":false},{"name":"authority","isMut":true,"isSigner":true},{"name":"oracle","isMut":true,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[]},{"name":"publishRandom","accounts":[{"name":"oracle","isMut":false,"isSigner":true},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[{"name":"random","type":{"array":["u8",64]}},{"name":"pktId","type":{"array":["u8",32]}},{"name":"tlsId","type":{"array":["u8",32]}}]},{"name":"transferAuthority","accounts":[{"name":"requester","isMut":true,"isSigner":false},{"name":"authority","isMut":true,"isSigner":true},{"name":"newAuthority","isMut":true,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[]}],"accounts":[{"name":"Requester","type":{"kind":"struct","fields":[{"name":"authority","type":"publicKey"},{"name":"oracle","type":"publicKey"},{"name":"createdAt","type":"i64"},{"name":"count","type":"u64"},{"name":"lastUpdated","type":"i64"},{"name":"random","type":{"array":["u8",64]}},{"name":"pktId","type":{"array":["u8",32]}},{"name":"tlsId","type":{"array":["u8",32]}},{"name":"activeRequest","type":"bool"},{"name":"bump","type":"u8"}]}},{"name":"Vault","type":{"kind":"struct","fields":[{"name":"requester","type":"publicKey"},{"name":"bump","type":"u8"}]}}],"errors":[{"code":300,"name":"Unauthorized","msg":"You are not authorized to complete this transaction"},{"code":301,"name":"AlreadyCompleted","msg":"You have already completed this transaction"},{"code":302,"name":"InflightRequest","msg":"A request is already in progress. Only one request may be made at a time"},{"code":303,"name":"WrongOracle","msg":"The Oracle you make the request with must be the same as initialization"},{"code":304,"name":"RequesterLocked","msg":"You cannot change authority of a request awaiting a response"}],"metadata":{"address":"2LXeKGTxVXwGpxvqLFgHzJyG4CFHXtBCKHXB6LPPv4N4"}}');
 
     const program = anchor.workspace.CrossPile as Program<CrossPile>;
     const userProgram = new anchor.Program(program.idl, program.programId, provider);
     const user2Program = new anchor.Program(program.idl, program.programId, provider2);
 
-    // const oraclePubkey = new anchor.web3.PublicKey('qkyoiJyAtt7dzaUTsiQYYyGRrnJL3AE1mP93bmFXpY8');
     const oraclePubkey = oracle.publicKey;
-    const solRngId = new anchor.web3.PublicKey('2LXeKGTxVXwGpxvqLFgHzJyG4CFHXtBCKHXB6LPPv4N4');
-    const solRngProgram = new anchor.Program(solRngIdl, solRngId, provider);
+    const solrandProgram = new anchor.Program(SOLRAND_IDL, solrandId, provider);
     const amount = new anchor.BN(100000000);
     const airdropAmount = 10000000000; // Should be more than betting amount
     let reqAccount, reqBump;
     let reqVaultAccount, reqVaultBump;
     let coinAccount, coinBump;
     let vaultAccount, vaultBump;
-    let flipAccount, flipBump;
 
     anchor.setProvider(provider);
 
@@ -70,15 +66,15 @@ describe('cross-pile', () => {
 
         [reqAccount, reqBump] = await anchor.web3.PublicKey.findProgramAddress(
             [Buffer.from("r-seed"), userKeyPair.publicKey.toBuffer()],
-            solRngId
+            solrandId
             );
 
         [reqVaultAccount, reqVaultBump] = await anchor.web3.PublicKey.findProgramAddress(
             [Buffer.from("v-seed"), userKeyPair.publicKey.toBuffer()],
-            solRngId,
+            solrandId,
             );
 
-        await solRngProgram.rpc.initialize(
+        await solrandProgram.rpc.initialize(
             reqBump,
             reqVaultBump,
             {
@@ -124,7 +120,7 @@ describe('cross-pile', () => {
                     acceptor: user2KeyPair.publicKey,
                     oracle: oraclePubkey,
                     oracleVault: reqVaultAccount,
-                    solRngProgram: solRngId,
+                    solrandProgram: solrandId,
                     rent: anchor.web3.SYSVAR_RENT_PUBKEY,
                     systemProgram: anchor.web3.SystemProgram.programId,
                 },
@@ -149,7 +145,7 @@ describe('cross-pile', () => {
                     requester: reqAccount,
                     oracle: oraclePubkey,
                     oracleVault: reqVaultAccount,
-                    solRngProgram: solRngId,
+                    solrandProgram: solrandId,
                     systemProgram: anchor.web3.SystemProgram.programId,
                 },
                 remainingAccounts: [
@@ -172,30 +168,10 @@ describe('cross-pile', () => {
     it('Oracle responds to request', async () => {
         let randomNumber = randomBytes(64);
         randomNumber[0] = 0; // Force winner to be acceptor
-        let pktId = randomBytes(32);
-        let tlsId = randomBytes(32);
 
-        anchor.setProvider(oracleProvider);
-        await solRngProgram.rpc.publishRandom(
-            randomNumber,
-            pktId,
-            tlsId, 
-            {
-                accounts: {
-                    oracle: oracle.publicKey,
-                    requester: reqAccount,
-                    systemProgram: anchor.web3.SystemProgram.programId,
-                },
-                remainingAccounts: [
-                    {
-                        pubkey: reqAccount,
-                        isWritable: true,
-                        isSigner: false,
-                    },
-                ],
-                signers: [oracle],
-            },
-        );
+        let requester = { publicKey: reqAccount };
+
+        await oracleSession.publishRandom(requester, randomNumber);
     });
 
     it('Reveal the result', async () => {
@@ -208,7 +184,7 @@ describe('cross-pile', () => {
                     vault: vaultAccount,
                     requester: reqAccount,
                     authority: user2KeyPair.publicKey,
-                    solRngProgram: solRngId,
+                    solrandProgram: solrandId,
                     systemProgram: anchor.web3.SystemProgram.programId,
                 },
                 remainingAccounts: [

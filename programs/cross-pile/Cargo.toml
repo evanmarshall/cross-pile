@@ -16,4 +16,4 @@ default = []
 
 [dependencies]
 anchor-lang = "0.18.2"
-sol_rng = { path = "/Users/evanmarshall/Documents/solana/sol-rng/sol_rng/programs/sol_rng", features = ["cpi"] }
+solrand = { version = "0.1.3", features = ["cpi"] }

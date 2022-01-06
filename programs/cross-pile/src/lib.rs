@@ -7,10 +7,10 @@ declare_id!("6urrPCjcrQ1xaxbAJGMTtvZfA9wbMqQbEArKnVUHhYTs");
  * The Cross And Pile Program (P2P Heads or Tails)
  * 
  * Accounts:
- * requester: PDA owned by the SOL_RNG Program used to store data
+ * requester: PDA owned by the Solrand Program used to store data
  * oracle: The Oracle's account. Refer to Published Addreses.
- * oracle_vault: PDA owned by the SOL_RNG Program for paying Oracle
- * sol_rng_program: The Program Address for the SOL_RNG Program
+ * oracle_vault: PDA owned by the Solrand Program for paying Oracle
+ * solrand_program: The Program Address for the Solrand Program
  * coin: PDA owned by Cross & Pile used for storing data
  * vault: PDA owned by Cross & Pile used for escrowing sol and paying winner
  * initiator: The account creating the coin
@@ -32,7 +32,7 @@ pub mod cross_pile {
     pub fn create_coin(
         ctx: Context<CreateCoin>,
         coin_bump: u8,
-        req_bump: u8,
+        _req_bump: u8,
         vault_bump: u8,
         amount: u64,
     ) -> ProgramResult {
@@ -54,7 +54,7 @@ pub mod cross_pile {
         }
 
         // Transfer authority for the oracle requester to the Coin PDA
-        let cpi_accounts = sol_rng::cpi::accounts::TransferAuthority {
+        let cpi_accounts = solrand::cpi::accounts::TransferAuthority {
             requester: ctx.accounts.requester.to_account_info(),
             authority: ctx.accounts.initiator.to_account_info(),
             new_authority: ctx.accounts.coin.to_account_info(),
@@ -62,11 +62,11 @@ pub mod cross_pile {
         };
 
         let cpi_context = CpiContext::new(
-            ctx.accounts.sol_rng_program.clone(),
+            ctx.accounts.solrand_program.clone(),
             cpi_accounts
         );
 
-        sol_rng::cpi::transfer_authority(cpi_context)?;
+        solrand::cpi::transfer_authority(cpi_context)?;
 
         // Transfer sol from Initiator to Vault PDA
         let ix = anchor_lang::solana_program::system_instruction::transfer(
@@ -112,7 +112,7 @@ pub mod cross_pile {
         // Use Coin PDA to Request Random From Oracle
         let coin_acc = &ctx.remaining_accounts[0];
 
-        let cpi_accounts = sol_rng::cpi::accounts::RequestRandom {
+        let cpi_accounts = solrand::cpi::accounts::RequestRandom {
             requester: ctx.accounts.requester.to_account_info(),
             vault: ctx.accounts.oracle_vault.clone(),
             authority: coin_acc.to_account_info(),
@@ -134,12 +134,12 @@ pub mod cross_pile {
         ];
 
         let cpi_context = CpiContext::new_with_signer(
-            ctx.accounts.sol_rng_program.clone(),
+            ctx.accounts.solrand_program.clone(),
             cpi_accounts,
             signer
         );
 
-        sol_rng::cpi::request_random(cpi_context)?;
+        solrand::cpi::request_random(cpi_context)?;
 
         Ok(())
     }
@@ -147,11 +147,22 @@ pub mod cross_pile {
     pub fn reveal_coin<'key, 'accounts, 'remaining, 'info>(
         ctx: Context<'key, 'accounts, 'remaining, 'info, RevealCoin<'info>>
     ) -> ProgramResult {
+        {
+            let authority_key = ctx.accounts.authority.key();
+
+            if authority_key != ctx.accounts.initiator.key() && authority_key != ctx.accounts.acceptor.key() {
+                return Err(ErrorCode::Unauthorized.into());
+            }
+        }
         // Determine winner from random number & transfer prize
         {
-            let requester_loader: AccountLoader<sol_rng::Requester> = AccountLoader::try_from_unchecked(ctx.program_id, &ctx.accounts.requester).unwrap();
+            let requester_loader: AccountLoader<solrand::Requester> = AccountLoader::try_from_unchecked(ctx.program_id, &ctx.accounts.requester).unwrap();
             let requester = requester_loader.load()?;
             let mut winner = ctx.accounts.initiator.clone();
+
+            if requester.active_request {
+                return Err(ErrorCode::OracleNotCompleted.into());
+            }
 
             // Take first byte (u8) and check if even
             // Even random => acceptor wins & initiator loses
@@ -166,7 +177,7 @@ pub mod cross_pile {
         // Transfer back ownership of requester
         let coin_acc = &ctx.remaining_accounts[0];
 
-        let cpi_accounts = sol_rng::cpi::accounts::TransferAuthority {
+        let cpi_accounts = solrand::cpi::accounts::TransferAuthority {
             requester: ctx.accounts.requester.to_account_info(),
             authority: coin_acc.to_account_info(),
             new_authority: ctx.accounts.initiator.to_account_info(),
@@ -187,12 +198,12 @@ pub mod cross_pile {
         ];
 
         let cpi_context = CpiContext::new_with_signer(
-            ctx.accounts.sol_rng_program.clone(),
+            ctx.accounts.solrand_program.clone(),
             cpi_accounts,
             signer
         );
 
-        sol_rng::cpi::transfer_authority(cpi_context)?;
+        solrand::cpi::transfer_authority(cpi_context)?;
 
         return Ok(());
     }
@@ -224,7 +235,7 @@ pub struct CreateCoin<'info> {
     pub acceptor: AccountInfo<'info>,
     pub oracle: AccountInfo<'info>,
     pub oracle_vault: AccountInfo<'info>,
-    pub sol_rng_program: AccountInfo<'info>,
+    pub solrand_program: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
 }
@@ -242,7 +253,7 @@ pub struct ApproveFlip<'info> {
     pub oracle: AccountInfo<'info>,
     #[account(mut)]
     pub oracle_vault: AccountInfo<'info>,
-    pub sol_rng_program: AccountInfo<'info>,
+    pub solrand_program: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -258,7 +269,7 @@ pub struct RevealCoin<'info> {
     pub requester: AccountInfo<'info>,
     #[account(mut, signer)]
     pub authority: AccountInfo<'info>,
-    pub sol_rng_program: AccountInfo<'info>,
+    pub solrand_program: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -278,4 +289,16 @@ pub struct Coin {
 pub struct Vault {
     pub amount: u64,
     pub bump: u8,
+}
+
+#[error]
+pub enum ErrorCode {
+    #[msg("You are not authorized to complete this transaction")]
+    Unauthorized,
+    #[msg("The coin is has already been flipped")]
+    AlreadyCompleted,
+    #[msg("A coin is already flipping. Only one flip may be made at a time")]
+    InflightRequest,
+    #[msg("The Oracle has not provided a response yet")]
+    OracleNotCompleted,
 }
