@@ -1,0 +1,12 @@
+[programs.localnet]
+cross_pile = "6urrPCjcrQ1xaxbAJGMTtvZfA9wbMqQbEArKnVUHhYTs"
+
+[registry]
+url = "https://anchor.projectserum.com"
+
+[provider]
+cluster = "localnet"
+wallet = <Your Key Path Here>
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

@@ -4,3 +4,8 @@
 target
 **/*.rs.bk
 node_modules
+Anchor.toml
+*.keys/*
+*.pem*
+*.csv*
+*keypair.json*
