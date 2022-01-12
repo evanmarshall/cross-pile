@@ -1,6 +1,5 @@
 {
     "dependencies": {
-        "@demox_labs/solrand": "^0.0.3",
         "@demox-labs/solrand": "^0.0.3",
         "@project-serum/anchor": "^0.18.2",
         "@project-serum/anchor-cli": "0.18.2"
