@@ -210,12 +210,11 @@ pub mod cross_pile {
 }
 
 #[derive(Accounts)]
-#[instruction(coin_bump: u8, req_bump: u8, vault_bump: u8)]
 pub struct CreateCoin<'info> {
     #[account(
         init, 
         seeds = [b"coin-seed".as_ref(), initiator.key().as_ref()],
-        bump = coin_bump,
+        bump,
         payer = initiator,
         space = 8 + size_of::<Coin>()
     )]
@@ -223,18 +222,24 @@ pub struct CreateCoin<'info> {
     #[account(
         init, 
         seeds = [b"vault-seed".as_ref(), initiator.key().as_ref()],
-        bump = vault_bump,
+        bump,
         payer = initiator,
         space = 8 + size_of::<Vault>()
     )]
     pub vault: Account<'info, Vault>,
+    /// CHECK: The Requester is the account provided to Solrand
     #[account(mut)]
     pub requester: AccountInfo<'info>,
+    /// CHECK: Making check pass
     #[account(mut, signer)]
     pub initiator: AccountInfo<'info>,
+    /// CHECK: The initiator decides the acceptor to use
     pub acceptor: AccountInfo<'info>,
+    /// CHECK: Oracle decided by the coin
     pub oracle: AccountInfo<'info>,
+    /// CHECK: Oracle decided by the coin
     pub oracle_vault: AccountInfo<'info>,
+    /// CHECK: Checks done in program
     pub solrand_program: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
@@ -242,33 +247,43 @@ pub struct CreateCoin<'info> {
 
 #[derive(Accounts)]
 pub struct ApproveFlip<'info> {
-    #[account(mut, signer)]
-    pub authority: AccountInfo<'info>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
     #[account(mut)]
     pub vault: Account<'info, Vault>,
+    /// CHECK: Checks done in program
     pub initiator: AccountInfo<'info>,
+    /// CHECK: Checks done in program
     #[account(mut)]
     pub requester: AccountInfo<'info>,
+    /// CHECK: Checks done in program
     #[account(mut)]
     pub oracle: AccountInfo<'info>,
+    /// CHECK: Checks done in program
     #[account(mut)]
     pub oracle_vault: AccountInfo<'info>,
+    /// CHECK: Checks done in program
     pub solrand_program: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 pub struct RevealCoin<'info> {
+    /// CHECK: Checks done in program
     #[account(mut)]
     pub initiator: AccountInfo<'info>,
+    /// CHECK: Checks done in program
     #[account(mut)]
     pub acceptor: AccountInfo<'info>,
+    /// CHECK: Checks done in program
     #[account(mut)]
     pub vault: Account<'info, Vault>,
+    /// CHECK: Checks done in program
     #[account(mut)]
     pub requester: AccountInfo<'info>,
-    #[account(mut, signer)]
-    pub authority: AccountInfo<'info>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK: Checks done in program
     pub solrand_program: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }

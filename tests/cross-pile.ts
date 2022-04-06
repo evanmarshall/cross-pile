@@ -132,6 +132,11 @@ describe('cross-pile', () => {
         assert(userBalance < airdropAmount);
 
         console.log('User Balance: ', userBalance);
+
+        await provider.connection.confirmTransaction(
+            await provider.connection.requestAirdrop(reqVaultAccount, 1000000000),
+            "confirmed"
+        );
     });
 
     it('Approve a flip', async () => {
