@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use std::mem::size_of;
 
-declare_id!("6urrPCjcrQ1xaxbAJGMTtvZfA9wbMqQbEArKnVUHhYTs");
+declare_id!("2VqrmwwBWQ38zUbJENmEHQfY1LPJZBpuNauVMpZhqMdK");
 
 /**
  * The Cross And Pile Program (P2P Heads or Tails)
@@ -86,7 +86,6 @@ pub mod cross_pile {
 
         Ok(())
     }
-
 
     pub fn approve_flip<'key, 'accounts, 'remaining, 'info>(
         ctx: Context<'key, 'accounts, 'remaining, 'info, ApproveFlip<'info>>
@@ -207,6 +206,65 @@ pub mod cross_pile {
 
         return Ok(());
     }
+
+    pub fn new_challenger(
+        ctx: Context<NewChallenger>,
+        user_bump: u8,
+    ) -> ProgramResult {
+        let challenger = &mut ctx.accounts.challenger;
+        challenger.challenger_owner = *ctx.accounts.user.to_account_info().key;
+        challenger.challengee = anchor_lang::prelude::Pubkey::default();
+        challenger.bump = user_bump;
+        Ok(())
+    }
+
+    pub fn accept_challenge(
+        ctx: Context<AcceptChallenge>,
+    ) -> ProgramResult {
+        let challenger = &mut ctx.accounts.challenger;
+        let challengee_key = &ctx.accounts.challengee.to_account_info().key;
+
+        // should make sure no one has already accepted the challenge
+        challenger.challengee = **challengee_key;
+        Ok(())
+    }
+}
+
+#[account]
+pub struct Challenger {
+    pub challenger_owner: Pubkey,
+    pub challengee: Pubkey,
+    pub bump: u8,
+}
+
+#[derive(Accounts)]
+pub struct NewChallenger<'info> {
+    #[account(
+        init,
+        payer= user,
+        space=8+size_of::<Challenger>(),
+        seeds=[b"challenger", user.to_account_info().key.as_ref()],
+        bump
+    )]
+    pub challenger: Account<'info, Challenger>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct AcceptChallenge<'info> {
+    #[account(
+        mut,
+        has_one=challenger_owner,
+        seeds=[b"challenger", challenger_owner.to_account_info().key.as_ref()],
+        bump
+    )]
+    pub challenger: Account<'info, Challenger>,
+    /// CHECK: Unsafe for some reason
+    pub challenger_owner: AccountInfo<'info>,
+    pub challengee: Signer<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
