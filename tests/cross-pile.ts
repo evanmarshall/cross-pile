@@ -4,151 +4,75 @@ import { MockOracleSession, SOLRAND_IDL, PROGRAM_ID } from '@demox-labs/solrand'
 import { CrossPile } from '../target/types/cross_pile';
 import { randomBytes } from 'crypto';
 import { assert, expect } from "chai";
+import { ChallengerSession, ChallengeeSession } from "../app/sessions.js";
 
 describe('cross-pile', () => {
-    const ENV = 'http://localhost:8899';
-    const solrandId = new anchor.web3.PublicKey(PROGRAM_ID);
-
-    function createProvider(keyPair) {
-        let solConnection = new anchor.web3.Connection(ENV);
-        let walletWrapper = new anchor.Wallet(keyPair);
-        return new anchor.Provider(solConnection, walletWrapper, {
-            preflightCommitment: 'recent',
-        });
-    }
-
-    async function getBalance(prov, key) {
-        anchor.setProvider(prov);
-        return await prov.connection.getBalance(key, "confirmed");
-    }
-
-    const userKeyPair = anchor.web3.Keypair.generate();
-    // const user2KeyPair = anchor.web3.Keypair.generate();
-    // const oracle = anchor.web3.Keypair.generate();
-    // const oracleSession = new MockOracleSession(oracle, SOLRAND_IDL, solrandId, ENV);
-
-    let provider = createProvider(userKeyPair);
-    // let provider2 = createProvider(user2KeyPair);
 
     const program = anchor.workspace.CrossPile as Program<CrossPile>;
-    // const userProgram = new anchor.Program(program.idl, program.programId, provider);
-    // const user2Program = new anchor.Program(program.idl, program.programId, provider2);
 
-    // const oraclePubkey = oracle.publicKey;
-    // const solrandProgram = new anchor.Program(SOLRAND_IDL, solrandId, provider);
-    // const amount = new anchor.BN(100000000);
-    // const airdropAmount = 10000000000; // Should be more than betting amount
-    // let reqAccount, reqBump;
-    // let reqVaultAccount, reqVaultBump;
-    // let coinAccount, coinBump;
-    // let vaultAccount, vaultBump;
+    const ENV = 'http://localhost:8899';
+    const AIRDROP = 1000000000;
+    const FEE = 15000; // In lamports, defined in lib.rs
 
-    anchor.setProvider(provider);
+    const challengerKeypair = anchor.web3.Keypair.generate();
+    const challengerSession = new ChallengerSession(challengerKeypair, program.idl, program.programId, ENV);
+    const challengeeKeypair = anchor.web3.Keypair.generate();
+    const challengeeSession = new ChallengeeSession(challengeeKeypair, program.idl, program.programId, ENV);
+
+
+    // anchor.setProvider(provider);
     console.log("-----------------------------------");
     console.log("Set Up Complete");
     console.log("-----------------------------------");
 
+    it('setup', async () => {
+        await challengerSession.requestAirdrop();
+        await challengeeSession.requestAirdrop();
+    });
 
-    async function getAccountBalance(pubkey) {
-        let account = await provider.connection.getAccountInfo(pubkey);
-        return account?.lamports ?? 0;
-    }
+    it('creates a new challenger', async () => {
+        const wagerAmount = new anchor.BN(10 * anchor.web3.LAMPORTS_PER_SOL);
+        const wagerAmountNum = wagerAmount.toNumber();
+        await challengerSession.setAccounts();
+        console.log('Challenge created 1 ');
+        await challengerSession.newChallenge(wagerAmount);
 
-    async function createUser(airdropBalance) {
-        airdropBalance = airdropBalance ?? 10 * anchor.web3.LAMPORTS_PER_SOL;
-        let user = anchor.web3.Keypair.generate();
-        let sig = await provider.connection.requestAirdrop(user.publicKey, airdropBalance);
-        await provider.connection.confirmTransaction(sig);
-      
-        let wallet = new anchor.Wallet(user);
-        let userProvider = new anchor.Provider(provider.connection, wallet, provider.opts);
-      
-        return {
-          key: user,
-          wallet,
-          provider: userProvider,
-        };
-    }
-      
-    function createUsers(numUsers) {
-        let promises = [];
-        for (let i = 0; i < numUsers; i++) {
-            promises.push(createUser(null));
-        }
-        
-        return Promise.all(promises);
-    }
+        console.log('Challenge created 2');
+        let challengeData = await challengerSession.fetchChallenge(challengerSession.challenge);
 
-    function programForUser(user) {
-        return new anchor.Program(program.idl, program.programId, user.provider);
-      }
+        console.log(challengeData);
 
-    async function createChallenge(owner, wagerAmount: anchor.BN)
-    {
-        const [challengeAccount, bump] = await anchor.web3.PublicKey.findProgramAddress(
-            ['challenge', owner.key.publicKey.toBytes()],
-            program.programId
-        );
+        console.log('Challenge accepted 3');
+        await challengeeSession.acceptChallenge(challengerSession.challenge);
 
-        let userProgram = programForUser(owner);
-        await userProgram.rpc.newChallenge(bump, wagerAmount, {
-            accounts: {
-                challenge: challengeAccount,
-                challengeInitiator: owner.key.publicKey,
-                systemProgram: anchor.web3.SystemProgram.programId,
-            },
-        });
+        console.log('Challenge 4');
+        challengeData = await challengerSession.fetchChallenge(challengerSession.challenge);
 
-        console.log("-_- / Challenge created. pubkey:", challengeAccount.toString());
+        console.log(challengeData);
 
-        let challengeData = await userProgram.account.challenge.fetch(challengeAccount);
-        return { publicKey: challengeAccount, data: challengeData };
-    }
 
-    async function acceptChallenge(challenge, challengee)
-    {
-        let userProgram = await programForUser(challengee);
-        await userProgram.rpc.acceptChallenge({
-            accounts: {
-                challenge: challenge.publicKey,
-                // challengeInitiator: challenge.data.challengeInitiator,
-                challengee: challengee.key.publicKey,
-                systemProgram: anchor.web3.SystemProgram.programId,
-            },
-            signers: [challengee.key]
-        });
+        // expect(challenge.data.challengeInitiator.toString(), "New challenger is owned by instantiating user.")
+        //     .equals(initiator.key.publicKey.toString());
+        // expect(challenge.data.challengee.toString(), "Challengee set to default public key.")
+        //     .equals(anchor.web3.PublicKey.default.toString());
+        // expect(challenge.data.wagerAmount.toNumber()).equals(wagerAmountNum);
+    });
 
-        console.log("\ -_- Challengee accepted challenger. Challenge pubkey:", challenge.publicKey.toString());
+    xit('accepts a challenger', async () => {
+        // const [owner, challengee] = await createUsers(2);
+        // // const program = await programForUser(challengee);
+        // // let challenges = await program.account.challenge.all();
+        // // for (let i = 0; i < challenges.length; i++) {
+        // //     console.log(challenges[i].account.challengee.toString());
+        // // }
 
-        await setTimeout( () => {}, 5000);
-        let acceptedChallenge = await userProgram.account.challenge.fetch(challenge.publicKey);
+        // const challenge = await createChallenge(owner, new anchor.BN(10 * anchor.web3.LAMPORTS_PER_SOL));
+        // const challengeAccepted = await acceptChallenge(challenge, challengee);
 
-        return { publicKey: challenge.publicKey, data: acceptedChallenge };
-    }
-
-    // it('creates a new challenger', async () => {
-    //     const initiator = await createUser(null);
-    //     const wagerAmount = new anchor.BN(10 * anchor.web3.LAMPORTS_PER_SOL);
-    //     const wagerAmountNum = wagerAmount.toNumber();
-    //     let challenge = await await createChallenge(initiator, wagerAmount);
-
-    //     expect(challenge.data.challengeInitiator.toString(), "New challenger is owned by instantiating user.")
-    //         .equals(initiator.key.publicKey.toString());
-    //     expect(challenge.data.challengee.toString(), "Challengee set to default public key.")
-    //         .equals(anchor.web3.PublicKey.default.toString());
-    //     expect(challenge.data.wagerAmount.toNumber()).equals(wagerAmountNum);
-    // });
-
-    it('accepts a challenger', async () => {
-        const [owner, challengee] = await createUsers(2);
-
-        const challenge = await createChallenge(owner, new anchor.BN(10 * anchor.web3.LAMPORTS_PER_SOL));
-        const challengeAccepted = await acceptChallenge(challenge, challengee);
-
-        expect(challengeAccepted.data.challengeInitiator.toString(), "Challenger owner remains instantiator.")
-            .equals(owner.key.publicKey.toString());
-        expect(challenge.data.challengee.toString(), "Challengee now set to accepting user's public key.")
-            .equals(challengee.key.publicKey.toString());
+        // expect(challengeAccepted.data.challengeInitiator.toString(), "Challenger owner remains instantiator.")
+        //     .equals(owner.key.publicKey.toString());
+        // expect(challenge.data.challengee.toString(), "Challengee now set to accepting user's public key.")
+        //     .equals(challengee.key.publicKey.toString());
     });
 
     // it('Set up tests', async () => {

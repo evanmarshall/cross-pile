@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use std::mem::size_of;
 
-declare_id!("2VqrmwwBWQ38zUbJENmEHQfY1LPJZBpuNauVMpZhqMdK");
+declare_id!("89H3p9Z8ytDVPg9WSnoJ7eTQSRMx7SZPocQDjWDa5vNy");
 
 /**
  * The Cross And Pile Program (P2P Heads or Tails)
@@ -214,7 +214,6 @@ pub mod cross_pile {
     ) -> ProgramResult {
         let challenge = &mut ctx.accounts.challenge;
         challenge.challenge_initiator = *ctx.accounts.challenge_initiator.to_account_info().key;
-        challenge.challengee = anchor_lang::prelude::Pubkey::default();
         challenge.wager_amount = wager_amount;
         challenge.bump = user_bump;
         Ok(())
