@@ -210,10 +210,12 @@ pub mod cross_pile {
     pub fn new_challenge(
         ctx: Context<NewChallenge>,
         user_bump: u8,
+        wager_amount: u64,
     ) -> ProgramResult {
         let challenge = &mut ctx.accounts.challenge;
         challenge.challenge_initiator = *ctx.accounts.challenge_initiator.to_account_info().key;
         challenge.challengee = anchor_lang::prelude::Pubkey::default();
+        challenge.wager_amount = wager_amount;
         challenge.bump = user_bump;
         Ok(())
     }
@@ -235,6 +237,7 @@ pub mod cross_pile {
 pub struct Challenge {
     pub challenge_initiator: Pubkey,
     pub challengee: Pubkey,
+    pub wager_amount: u64,
     pub bump: u8,
 }
 
@@ -255,15 +258,11 @@ pub struct NewChallenge<'info> {
 
 #[derive(Accounts)]
 pub struct AcceptChallenge<'info> {
-    #[account(
-        mut,
-        seeds=[b"challenge", challenge_initiator.to_account_info().key.as_ref()],
-        bump
-    )]
+    #[account(mut)]
     pub challenge: Account<'info, Challenge>,
     //pub challengee_pub_key: Pubkey,
-    /// CHECK: Unsafe for some reason
-    pub challenge_initiator: AccountInfo<'info>,
+    // /// CHECK: Unsafe for some reason
+    // pub challenge_initiator: AccountInfo<'info>,
     pub challengee: Signer<'info>,
     pub system_program: Program<'info, System>,
 }

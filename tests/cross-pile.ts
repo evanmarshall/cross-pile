@@ -83,7 +83,7 @@ describe('cross-pile', () => {
         return new anchor.Program(program.idl, program.programId, user.provider);
       }
 
-    async function createChallenge(owner)
+    async function createChallenge(owner, wagerAmount: anchor.BN)
     {
         const [challengeAccount, bump] = await anchor.web3.PublicKey.findProgramAddress(
             ['challenge', owner.key.publicKey.toBytes()],
@@ -91,7 +91,7 @@ describe('cross-pile', () => {
         );
 
         let userProgram = programForUser(owner);
-        await userProgram.rpc.newChallenge(bump, {
+        await userProgram.rpc.newChallenge(bump, wagerAmount, {
             accounts: {
                 challenge: challengeAccount,
                 challengeInitiator: owner.key.publicKey,
@@ -111,33 +111,38 @@ describe('cross-pile', () => {
         await userProgram.rpc.acceptChallenge({
             accounts: {
                 challenge: challenge.publicKey,
-                challengeInitiator: challenge.data.challengeInitiator,
+                // challengeInitiator: challenge.data.challengeInitiator,
                 challengee: challengee.key.publicKey,
                 systemProgram: anchor.web3.SystemProgram.programId,
             },
+            signers: [challengee.key]
         });
 
         console.log("\ -_- Challengee accepted challenger. Challenge pubkey:", challenge.publicKey.toString());
 
+        await setTimeout( () => {}, 5000);
         let acceptedChallenge = await userProgram.account.challenge.fetch(challenge.publicKey);
 
         return { publicKey: challenge.publicKey, data: acceptedChallenge };
     }
 
-    it('creates a new challenger', async () => {
-        const initiator = await createUser(null);
-        let challenge = await await createChallenge(initiator);
+    // it('creates a new challenger', async () => {
+    //     const initiator = await createUser(null);
+    //     const wagerAmount = new anchor.BN(10 * anchor.web3.LAMPORTS_PER_SOL);
+    //     const wagerAmountNum = wagerAmount.toNumber();
+    //     let challenge = await await createChallenge(initiator, wagerAmount);
 
-        expect(challenge.data.challengeInitiator.toString(), "New challenger is owned by instantiating user.")
-            .equals(initiator.key.publicKey.toString());
-        expect(challenge.data.challengee.toString(), "Challengee set to default public key.")
-            .equals(anchor.web3.PublicKey.default.toString());
-    });
+    //     expect(challenge.data.challengeInitiator.toString(), "New challenger is owned by instantiating user.")
+    //         .equals(initiator.key.publicKey.toString());
+    //     expect(challenge.data.challengee.toString(), "Challengee set to default public key.")
+    //         .equals(anchor.web3.PublicKey.default.toString());
+    //     expect(challenge.data.wagerAmount.toNumber()).equals(wagerAmountNum);
+    // });
 
     it('accepts a challenger', async () => {
         const [owner, challengee] = await createUsers(2);
 
-        const challenge = await createChallenge(owner);
+        const challenge = await createChallenge(owner, new anchor.BN(10 * anchor.web3.LAMPORTS_PER_SOL));
         const challengeAccepted = await acceptChallenge(challenge, challengee);
 
         expect(challengeAccepted.data.challengeInitiator.toString(), "Challenger owner remains instantiator.")
