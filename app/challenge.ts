@@ -47,6 +47,7 @@ export class Challenge {
         this.programId = programId;
         if (userPublicKey !== null) {
             this.initiator = userPublicKey;
+            this.requester = requester;
 
             this.initiatorTokensMint = PublicKey.default;
             this.initiatorTokensVault = PublicKey.default;
@@ -68,12 +69,17 @@ export class Challenge {
             this.acceptorTokensMint = challengeData.acceptorTokensMint;
             this.acceptorWagerTokenAmount = Number(challengeData.acceptorWagerTokenAmount);
             this.acceptorWagerApproved = challengeData.acceptorWagerApproved;
+            this.requester = challengeData.requester;
         }
     }
 
     async assignAddressAndBump(): Promise<PublicKey> {
         let [address, bump] = await web3.PublicKey.findProgramAddress(
-            [Buffer.from(this.seed), this.initiator.toBuffer()],
+            [
+                Buffer.from(this.seed),
+                this.initiator.toBuffer(),
+                this.requester.toBuffer()
+            ],
             this.programId,
         );
         this.address = address;
@@ -92,6 +98,6 @@ export class Challenge {
         expect(otherChallenge.acceptorTokensMint.toString(), "acceptorTokensMint").equals(this.acceptorTokensMint.toString());
         expect(otherChallenge.acceptorWagerTokenAmount, "acceptorWagerTokenAmount").equals(this.acceptorWagerTokenAmount);
         expect(otherChallenge.acceptorWagerApproved, "acceptorWagerApproved").equals(this.acceptorWagerApproved);
-        expect(otherChallenge.requester, "requester").equals(this.requester);
+        expect(otherChallenge.requester.toString(), "requester").equals(this.requester.toString());
     }
 }

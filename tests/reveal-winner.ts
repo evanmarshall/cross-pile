@@ -46,7 +46,7 @@ describe('reveal-winner', () => {
 
     const initialTokenFundAmount = 2000;
     const initiatorWagerTokenAmount = 1000;
-    
+
     it('Set up tests', async() => {
         await Promise.all([
             thirdPartySession.requestAirdrop(),
@@ -75,7 +75,7 @@ describe('reveal-winner', () => {
         initiators = initiatorSessions.map((initiatorSession) => new User(initiatorSession));
         acceptors = acceptorSessions.map((acceptorSession) => new User(acceptorSession));
 
-        expectedChallenges = await createChallengesWithAddressAndBump(initiators, solrandSessions);
+        expectedChallenges = await createChallengesWithAddressAndBump(program.programId, initiators, solrandSessions);
 
         await Promise.all(
             newChallenges(initiators, solrandSessions, initiatorWagerTokenAmount, expectedChallenges)

@@ -115,6 +115,7 @@ pub mod cross_pile {
             let challenge_seeds = &[
                 b"challenge".as_ref(),
                 ctx.accounts.challenge.initiator.as_ref(),
+                ctx.accounts.challenge.requester.as_ref(),
                 &[challenge_bump]
             ];
 
@@ -142,6 +143,7 @@ pub mod cross_pile {
             let challenge_seeds = &[
                     b"challenge".as_ref(),
                     ctx.accounts.challenge.initiator.as_ref(),
+                    ctx.accounts.challenge.requester.as_ref(),
                     &[challenge.bump]
                 ];
 
@@ -214,6 +216,7 @@ pub mod cross_pile {
         let challenge_seeds = &[
             b"challenge",
             ctx.accounts.challenge.initiator.as_ref(),
+            ctx.accounts.challenge.requester.as_ref(),
             &[ctx.accounts.challenge.bump]
         ];
         anchor_spl::token::transfer(
@@ -297,6 +300,7 @@ pub mod cross_pile {
         let challenge_seeds = &[
             b"challenge",
             ctx.accounts.challenge.initiator.as_ref(),
+            ctx.accounts.challenge.requester.as_ref(),
             &[ctx.accounts.challenge.bump]
         ];
 
@@ -344,6 +348,7 @@ pub mod cross_pile {
         let challenge_seeds = &[
             b"challenge",
             ctx.accounts.challenge.initiator.as_ref(),
+            ctx.accounts.challenge.requester.as_ref(),
             &[ctx.accounts.challenge.bump]
         ];
 
@@ -506,7 +511,6 @@ pub struct Challenge {
 }
 
 // arguments list for new_challenge
-// TODO: make the challenge bump include a UUID to allow initiators to create as many challenges as they want
 #[derive(Accounts)]
 #[instruction(initiator_wager_token_amount: u64)]
 pub struct NewChallenge<'info> {
@@ -518,7 +522,11 @@ pub struct NewChallenge<'info> {
         init,
         payer = initiator,
         space = 8 + size_of::<Challenge>(),
-        seeds = [b"challenge", initiator.to_account_info().key.as_ref()],
+        seeds = [
+            b"challenge",
+            initiator.to_account_info().key.as_ref(),
+            requester.key().as_ref(),
+            ],
         bump
     )]
     pub challenge: Account<'info, Challenge>,
@@ -527,7 +535,10 @@ pub struct NewChallenge<'info> {
     #[account(
         init,
         payer = initiator,
-        seeds = [b"initiator_tokens_vault".as_ref(), initiator.to_account_info().key.as_ref()],
+        seeds = [
+            b"initiator_tokens_vault".as_ref(),
+            initiator.to_account_info().key.as_ref(),
+            ],
         bump,
         token::mint=initiator_tokens_mint,
         token::authority=challenge,

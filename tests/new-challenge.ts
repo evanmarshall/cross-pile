@@ -11,7 +11,7 @@ import { TimeLogger, CommitmentLevel, instantiateSessions } from '../app/utils';
 import { Challenge } from '../app/challenge';
 
 const timeLogger = new TimeLogger();
-timeLogger.disable();
+// timeLogger.disable();
 const program = anchor.workspace.CrossPile as Program<CrossPile>;
 const ENV = 'http://localhost:8899';
 const uuid = Math.floor(Math.random() * 2**50);
@@ -84,6 +84,7 @@ describe('new-challenge', () => {
 
             let expectedChallenge = new Challenge(program.programId, initiator.session.userKeypair.publicKey, solrandSession.userSession.reqAccount);
             await expectedChallenge.assignAddressAndBump();
+            timeLogger.log("assigned address for expected challenge: " + expectedChallenge.address.toString());
 
             let newChallengeTx = await initiator.newChallenge(expectedChallenge, wagerTokensAmountBigNumber, solrandId, solrandSession.userSession.reqAccount);
             timeLogger.log("challenge created");
@@ -105,6 +106,8 @@ describe('new-challenge', () => {
             expectedChallenge.initiatorWagerTokenAmount = wagerTokensAmount;
 
             let actualChallenge = new Challenge(program.programId, null, null, challengeData);
+            timeLogger.log("actualChallenge requester: " + actualChallenge.requester.toString());
+            timeLogger.log("expectedChallenge requester: " + expectedChallenge.requester.toString());
 
             expectedChallenge.isEquivalentTo(actualChallenge);
             expect(Number(tokenSourceAccount.amount))

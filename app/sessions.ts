@@ -114,13 +114,6 @@ export class User {
         this.session = session;
     }
 
-    async getChallengeAddressAndBump(): Promise<[PublicKey, any]> {
-        return await web3.PublicKey.findProgramAddress(
-            [Buffer.from(this.session.seed), this.session.userKeypair.publicKey.toBuffer()],
-            this.session.programId,
-        );
-    }
-
     async newChallenge(
         challenge: Challenge,
         amountOfTokens: BN,

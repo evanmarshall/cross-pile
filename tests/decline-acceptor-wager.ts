@@ -77,7 +77,7 @@ describe('decline-acceptor-wager', () => {
         initiators = initiatorSessions.map((initiatorSession) => new User(initiatorSession));
         acceptors = acceptorSessions.map((acceptorSession) => new User(acceptorSession));
 
-        expectedChallenges = await createChallengesWithAddressAndBump(initiators, solrandSessions);
+        expectedChallenges = await createChallengesWithAddressAndBump(program.programId, initiators, solrandSessions);
         
         await Promise.all(
             newChallenges(initiators, solrandSessions, initiatorWagerTokenAmount, expectedChallenges)

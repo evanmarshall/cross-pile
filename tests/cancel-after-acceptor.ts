@@ -74,7 +74,7 @@ describe('cancel_after_acceptor', () => {
         initiators = initiatorSessions.map((initiatorSession) => new User(initiatorSession));
         acceptors = acceptorSessions.map((acceptorSession) => new User(acceptorSession));
 
-        expectedChallenges = await createChallengesWithAddressAndBump(initiators, solrandSessions);
+        expectedChallenges = await createChallengesWithAddressAndBump(program.programId, initiators, solrandSessions);
         const initiatorWagerTokenAmount = 1000;
 
         await Promise.all(

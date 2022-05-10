@@ -64,6 +64,7 @@ export function instantiateSessions(
     }
 
 export async function createChallengesWithAddressAndBump(
+    programId: PublicKey,
     initiators: User[],
     solrandSessions: SolrandSession[],
     ): Promise<Challenge[]>
@@ -71,6 +72,7 @@ export async function createChallengesWithAddressAndBump(
         let challenges: Challenge[] = [];
         for (let i = 0; i < initiators.length; i++) {
             let challenge = new Challenge(
+                programId,
                 initiators[i].session.userKeypair.publicKey,
                 solrandSessions[i].userSession.reqAccount);
             await challenge.assignAddressAndBump();
