@@ -9,12 +9,12 @@ cluster = "localnet"
 wallet = <Your Key Path Here>
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+test = "yarn run ts-mocha -p --parallel ./tsconfig.json -t 1000000 tests/**/*.ts"
 
 [test.validator]
 url = "mainnet"
 [[test.validator.clone]]
-address = "GxJJd3q28eUd7kpPCbNXGeixqHmBYJ2owqUYqse3ZrGS"
+address = "8nzxsNf74ZHDguHi51SjQWxDxegL2DBgxeGHA2pQVtTJ"
 [[test.validator.clone]]
-address = "DQFt5uWLeXQKfQkwuiojaGPgdF5bFa4hgDiS4HSFFadV"
+address = "K2z1qkxZdsw6WpFd63hqhqx9MYUc5c85NdbXULNeGhW"
 
