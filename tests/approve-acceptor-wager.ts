@@ -147,7 +147,7 @@ describe('approve-acceptor-wager', () => {
             timeLogger.log("expected challenge: " + expectedChallenge.address.toString());
             let challengeData = await program.account.challenge.fetch(expectedChallenge.address);
             timeLogger.log("challengeData: " + challengeData);
-            let actualChallenge = new Challenge(null, null, challengeData);
+            let actualChallenge = new Challenge(program.programId, null, null, challengeData);
             expectedChallenge.initiatorTokensMint = mint1;
             expectedChallenge.initiatorTokensVault = initiator.tokensVaultAddress;
             expectedChallenge.initiatorWagerTokenAmount = initiatorWagerTokenAmount;

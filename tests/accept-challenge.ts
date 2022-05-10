@@ -76,7 +76,7 @@ describe('accept-challenge', () => {
         initiators = initiatorSessions.map((initiatorSession) => new User(initiatorSession));
         acceptors = acceptorSessions.map((acceptorSession) => new User(acceptorSession));
 
-        expectedChallenges = await createChallengesWithAddressAndBump(initiators, solrandSessions);
+        expectedChallenges = await createChallengesWithAddressAndBump(program.programId, initiators, solrandSessions);
 
         await Promise.all(
             newChallenges(initiators, solrandSessions, initiatorWagerTokenAmount, expectedChallenges)
@@ -121,7 +121,7 @@ describe('accept-challenge', () => {
                 acceptorTokenSourceAccount = values[1];
                 acceptorTokensVault = values[2];
             });
-            let actualChallenge = new Challenge(null, null, challengeData);
+            let actualChallenge = new Challenge(program.programId, null, null, challengeData);
             expectedChallenge.initiatorTokensMint = mint1;
             expectedChallenge.initiatorTokensVault = initiator.tokensVaultAddress;
             expectedChallenge.initiatorWagerTokenAmount = initiatorWagerTokenAmount;

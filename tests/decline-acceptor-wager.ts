@@ -114,7 +114,7 @@ describe('decline-acceptor-wager', () => {
             );
             timeLogger.log("acceptor wager declined");
             let challengeData = await program.account.challenge.fetch(expectedChallenge.address);
-            let actualChallenge = new Challenge(null, null, challengeData);
+            let actualChallenge = new Challenge(program.programId, null, null, challengeData);
             expectedChallenge.initiatorTokensMint = mint1;
             expectedChallenge.initiatorTokensVault = initiator.tokensVaultAddress;
             expectedChallenge.initiatorWagerTokenAmount = initiatorWagerTokenAmount;

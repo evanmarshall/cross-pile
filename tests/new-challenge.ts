@@ -82,7 +82,7 @@ describe('new-challenge', () => {
             let tokenSourceAccount = await initiator.session.getOrCreateAssociatedTokenAccount(initiator.session.tokensSource.mint, mintAuthority);
             timeLogger.log("initiator token source account amount right before challenge: " + tokenSourceAccount.amount);
 
-            let expectedChallenge = new Challenge(initiator.session.userKeypair.publicKey, solrandSession.userSession.reqAccount);
+            let expectedChallenge = new Challenge(program.programId, initiator.session.userKeypair.publicKey, solrandSession.userSession.reqAccount);
             await expectedChallenge.assignAddressAndBump();
 
             let newChallengeTx = await initiator.newChallenge(expectedChallenge, wagerTokensAmountBigNumber, solrandId, solrandSession.userSession.reqAccount);
@@ -104,7 +104,7 @@ describe('new-challenge', () => {
             expectedChallenge.initiatorTokensVault = initiator.tokensVaultAddress;
             expectedChallenge.initiatorWagerTokenAmount = wagerTokensAmount;
 
-            let actualChallenge = new Challenge(null, null, challengeData);
+            let actualChallenge = new Challenge(program.programId, null, null, challengeData);
 
             expectedChallenge.isEquivalentTo(actualChallenge);
             expect(Number(tokenSourceAccount.amount))

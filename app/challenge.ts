@@ -1,6 +1,6 @@
 import { web3, workspace } from '@project-serum/anchor';
 import { TypeDef } from '@project-serum/anchor/dist/cjs/program/namespace/types';
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { expect } from 'chai';
 
 // full ts class meant to mimic the challenge PDA
@@ -19,7 +19,7 @@ import { expect } from 'chai';
 export class Challenge {
     // part of initialization
     seed: string = "challenge";
-    programId: PublicKey = workspace.CrossPile.programId;
+    programId: PublicKey;
     initiator: PublicKey;
     requester: PublicKey;
 
@@ -42,8 +42,9 @@ export class Challenge {
     // set after approve_acceptor_wager, but initialized to false
     acceptorWagerApproved: boolean = false;
 
-    constructor(userPublicKey?: PublicKey, requester?: PublicKey, challengeData?: TypeDef<any, any>, challengeAddress?: PublicKey)
+    constructor(programId: PublicKey, userPublicKey?: PublicKey, requester?: PublicKey, challengeData?: TypeDef<any, any>, challengeAddress?: PublicKey)
     {
+        this.programId = programId;
         if (userPublicKey !== null) {
             this.initiator = userPublicKey;
 
